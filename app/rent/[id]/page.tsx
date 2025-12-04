@@ -43,6 +43,9 @@ const rentSchema = z.object({
     terms: z.boolean().refine((val) => val === true, "You must agree to the terms"),
 });
 
+type RentFormInput = z.input<typeof rentSchema>;
+type RentFormValues = z.output<typeof rentSchema>;
+
 export default function RentPage() {
     const params = useParams();
     const router = useRouter();
@@ -51,13 +54,14 @@ export default function RentPage() {
     const [totalCost, setTotalCost] = useState(0);
     const [showTerms, setShowTerms] = useState(false);
 
-    const form = useForm<z.infer<typeof rentSchema>>({
+    const form = useForm<RentFormInput, any, RentFormValues>({
         resolver: zodResolver(rentSchema),
         defaultValues: {
             name: "",
             email: "",
             duration: "hourly",
             quantity: 1,
+            bidPrice: undefined,
             cardNumber: "",
             expiry: "",
             cvv: "",
@@ -67,8 +71,10 @@ export default function RentPage() {
 
     // Watch values to calculate cost
     const duration = form.watch("duration");
-    const quantity = form.watch("quantity");
-    const bidPrice = form.watch("bidPrice");
+    const watchedQuantity = form.watch("quantity");
+    const watchedBidPrice = form.watch("bidPrice");
+    const quantity = typeof watchedQuantity === "number" ? watchedQuantity : Number(watchedQuantity ?? 1);
+    const bidPrice = typeof watchedBidPrice === "number" ? watchedBidPrice : undefined;
 
     useEffect(() => {
         if (params.id) {
@@ -102,12 +108,13 @@ export default function RentPage() {
         if (duration === "daily") multiplier = 24;
         if (duration === "monthly") multiplier = 730;
 
-        const price = bidPrice || gpu.price;
-        const cost = price * multiplier * (quantity || 1);
+        const price = bidPrice ?? gpu.price;
+        const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+        const cost = price * multiplier * safeQuantity;
         setTotalCost(Number(cost.toFixed(2)));
     }, [gpu, duration, quantity, bidPrice]);
 
-    const onSubmit = async (values: z.infer<typeof rentSchema>) => {
+    const onSubmit = async (values: RentFormValues) => {
         if (!gpu) return;
 
         setIsLoading(true);
@@ -318,7 +325,32 @@ export default function RentPage() {
                                                         <FormItem>
                                                             <FormLabel>Quantity</FormLabel>
                                                             <FormControl>
-                                                                <Input type="number" min={1} max={gpu.count} {...field} className="bg-black/50 border-white/10 h-11" />
+                                                                {(() => {
+                                                                    const quantityValue =
+                                                                        typeof field.value === "number"
+                                                                            ? field.value
+                                                                            : field.value
+                                                                                ? Number(field.value)
+                                                                                : "";
+
+                                                                    return (
+                                                                        <Input
+                                                                            type="number"
+                                                                            min={1}
+                                                                            max={gpu.count}
+                                                                            className="bg-black/50 border-white/10 h-11"
+                                                                            value={quantityValue}
+                                                                            onChange={(e) =>
+                                                                                field.onChange(
+                                                                                    e.target.value ? Number(e.target.value) : ""
+                                                                                )
+                                                                            }
+                                                                            onBlur={field.onBlur}
+                                                                            name={field.name}
+                                                                            ref={field.ref}
+                                                                        />
+                                                                    );
+                                                                })()}
                                                             </FormControl>
                                                             <FormMessage />
                                                         </FormItem>
@@ -331,13 +363,31 @@ export default function RentPage() {
                                                         <FormItem>
                                                             <FormLabel>Bid Price ($/hr)</FormLabel>
                                                             <FormControl>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder={gpu.price.toString()}
-                                                                    {...field}
-                                                                    value={field.value ?? ""}
-                                                                    className="bg-black/50 border-white/10 h-11"
-                                                                />
+                                                                {(() => {
+                                                                    const bidPriceValue =
+                                                                        typeof field.value === "number"
+                                                                            ? field.value
+                                                                            : field.value
+                                                                                ? Number(field.value)
+                                                                                : "";
+
+                                                                    return (
+                                                                        <Input
+                                                                            type="number"
+                                                                            placeholder={gpu.price.toString()}
+                                                                            className="bg-black/50 border-white/10 h-11"
+                                                                            value={bidPriceValue}
+                                                                            onChange={(e) =>
+                                                                                field.onChange(
+                                                                                    e.target.value ? Number(e.target.value) : undefined
+                                                                                )
+                                                                            }
+                                                                            onBlur={field.onBlur}
+                                                                            name={field.name}
+                                                                            ref={field.ref}
+                                                                        />
+                                                                    );
+                                                                })()}
                                                             </FormControl>
                                                             <FormDescription className="text-xs text-zinc-500">Optional - Default: ${gpu.price}</FormDescription>
                                                             <FormMessage />

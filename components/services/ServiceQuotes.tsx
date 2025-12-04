@@ -37,7 +37,8 @@ export function ServiceQuotes() {
     // Combine scroll-based movement (percentage) with manual offset (pixels)
     // We use a transform to create a CSS calc() string
     const baseX = useTransform(scrollYProgress, [0, 1], ["0%", "-25%"])
-    const x = useTransform([baseX, manualOffset], ([base, manual]) => `calc(${base} + ${manual}px)`)
+    const manualX = useTransform(manualOffset, (value) => `${value}px`)
+    const x = useTransform([baseX, manualX], ([base, manual]) => `calc(${base} + ${manual})`)
 
     const handlePrev = () => {
         const current = manualOffset.get()
