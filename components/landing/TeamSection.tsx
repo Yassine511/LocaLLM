@@ -10,7 +10,7 @@ const team = [
     },
     {
         name: "Yassine Maazouz",
-        role: "Marketing/HR Lead",
+        role: "Development/Marketing Lead",
         quote: "Data privacy protects from misuse.",
         initials: "YM"
     },
